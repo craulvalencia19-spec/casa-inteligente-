@@ -1,295 +1,343 @@
+
+Casa inteligente · HTML
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CYBERPUNK ESP32 MAINFRAME</title>
-    <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Casa Inteligente ESP32</title>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-
-    <div class="scifi-container">
-        
-        <header class="cyber-header">
-            <div class="glitch-title">QUANTUM ESP32 CONTROL</div>
-            <div class="subtitle">SISTEMA MAESTRO DE TEMPORIZACIÓN SERIAL</div>
-            <div class="status-bar">
-                <button class="btn btn-trigger" id="btn-conectar" onclick="conectarSerial()">🔌 CONECTAR ESP32</button>
-                | ESTADO PUERTO: <span id="serial-status" class="text-red">DESCONECTADO</span>
-            </div>
-        </header>
-
-        <section class="master-panel">
-            <div class="master-title">CONTROLES MAESTROS GLOBALES</div>
-            <div class="master-interface">
-                <div class="input-group">
-                    <label>TEMPORIZADOR GLOBAL (Segundos)</label>
-                    <input type="number" id="time-master" value="10" min="1">
-                </div>
-                <div class="master-buttons">
-                    <button class="btn btn-master-on" onclick="masterTemporizador(true)">⚡ ENCENDER TODO (TIMER)</button>
-                    <button class="btn btn-master-off" onclick="masterTemporizador(false)">🚨 APAGAR TODO / ABORTAR</button>
-                </div>
-            </div>
-        </section>
-
-        <main class="relay-grid">
-            
-            <div class="relay-card" id="card-0">
-                <div class="card-header">
-                    <span class="relay-id">RELE_00</span>
-                    <span class="relay-pin">PIN 26</span>
-                </div>
-                <div class="display-status">APAGADO</div>
-                <div class="countdown-timer">00:00</div>
-                <div class="timer-inputs">
-                    <div class="input-group">
-                        <label>TIEMPO ENCENDIDO (s)</label>
-                        <input type="number" id="time-on-0" value="5" min="1">
-                    </div>
-                </div>
-                <div class="action-buttons">
-                    <button class="btn btn-trigger" onclick="iniciarTemporizador(0)">INICIAR</button>
-                    <button class="btn btn-abort" onclick="abortarTemporizador(0)">ABORTAR</button>
-                </div>
-            </div>
-
-            <div class="relay-card" id="card-1">
-                <div class="card-header">
-                    <span class="relay-id">RELE_01</span>
-                    <span class="relay-pin">PIN 27</span>
-                </div>
-                <div class="display-status">APAGADO</div>
-                <div class="countdown-timer">00:00</div>
-                <div class="timer-inputs">
-                    <div class="input-group">
-                        <label>TIEMPO ENCENDIDO (s)</label>
-                        <input type="number" id="time-on-1" value="5" min="1">
-                    </div>
-                </div>
-                <div class="action-buttons">
-                    <button class="btn btn-trigger" onclick="iniciarTemporizador(1)">INICIAR</button>
-                    <button class="btn btn-abort" onclick="abortarTemporizador(1)">ABORTAR</button>
-                </div>
-            </div>
-
-            <div class="relay-card" id="card-2">
-                <div class="card-header">
-                    <span class="relay-id">RELE_02</span>
-                    <span class="relay-pin">PIN 25</span>
-                </div>
-                <div class="display-status">APAGADO</div>
-                <div class="countdown-timer">00:00</div>
-                <div class="timer-inputs">
-                    <div class="input-group">
-                        <label>TIEMPO ENCENDIDO (s)</label>
-                        <input type="number" id="time-on-2" value="5" min="1">
-                    </div>
-                </div>
-                <div class="action-buttons">
-                    <button class="btn btn-trigger" onclick="iniciarTemporizador(2)">INICIAR</button>
-                    <button class="btn btn-abort" onclick="abortarTemporizador(2)">ABORTAR</button>
-                </div>
-            </div>
-
-            <div class="relay-card" id="card-3">
-                <div class="card-header">
-                    <span class="relay-id">RELE_03</span>
-                    <span class="relay-pin">PIN 33</span>
-                </div>
-                <div class="display-status">APAGADO</div>
-                <div class="countdown-timer">00:00</div>
-                <div class="timer-inputs">
-                    <div class="input-group">
-                        <label>TIEMPO ENCENDIDO (s)</label>
-                        <input type="number" id="time-on-3" value="5" min="1">
-                    </div>
-                </div>
-                <div class="action-buttons">
-                    <button class="btn btn-trigger" onclick="iniciarTemporizador(3)">INICIAR</button>
-                    <button class="btn btn-abort" onclick="abortarTemporizador(3)">ABORTAR</button>
-                </div>
-            </div>
-
-        </main>
-
-        <footer class="cyber-console">
-            <div class="console-title">TERMINAL LOGS</div>
-            <div class="console-box" id="log-box">
-                <p class="log-line text-cyan">[SISTEMA] Listo. Conecte el ESP32 y asegúrese de cerrar el monitor serie de Arduino.</p>
-            </div>
-        </footer>
-
+ 
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-icon">🏠</div>
+    <div class="brand-text">
+      <div class="brand-name">Casa Inteligente</div>
+      <div class="brand-sub">ESP32 · Control de 4 Relés</div>
     </div>
-
-    <script>
-        let puertoSerial = null;
-        let escritorSerial = null;
-        let relojes = [null, null, null, null];
-        let relojMaestro = null;
-
-        async function conectarSerial() {
-            try {
-                puertoSerial = await navigator.serial.requestPort();
-                await puertoSerial.open({ baudRate: 115200 });
-                escritorSerial = puertoSerial.writable.getWriter();
-                
-                document.getElementById('serial-status').textContent = "CONECTADO";
-                document.getElementById('serial-status').className = "text-green";
-                agregarLog("[SERIAL] Enlace establecido con ESP32 con éxito.", "text-green");
-            } catch (error) {
-                agregarLog("[ERROR] Fallo al abrir puerto: " + error, "text-red");
-            }
-        }
-
-        async function enviarComandoESP32(comando) {
-            if (!escritorSerial) {
-                agregarLog(`[WEB-ONLY] Interfaz actualiza estado local para comando: ${comando}`, "text-yellow");
-                return;
-            }
-            try {
-                const encoder = new TextEncoder();
-                await escritorSerial.write(encoder.encode(comando + "\n"));
-            } catch (error) {
-                agregarLog("[ERROR] Error de envío USB: " + error, "text-red");
-            }
-        }
-
-        function iniciarTemporizador(id) {
-            abortarTemporizador(id);
-
-            const tarjeta = document.getElementById(`card-${id}`);
-            const inputTiempo = document.getElementById(`time-on-${id}`);
-            const displayStatus = tarjeta.querySelector('.display-status');
-            const displayTimer = tarjeta.querySelector('.countdown-timer');
-            
-            let segundosRestantes = parseInt(inputTiempo.value);
-
-            if (isNaN(segundosRestantes) || segundosRestantes <= 0) {
-                agregarLog(`[RECHAZADO] Tiempo incorrecto en RELE_0${id}`, 'text-red');
-                return;
-            }
-
-            // Envía orden de encendido (físicamente pondrá el pin en LOW)
-            enviarComandoESP32(`ENCENDER_${id}`);
-            activarTarjetaVisual(id, segundosRestantes);
-            agregarLog(`[COMANDO] RELE_0${id} ACTIVADO (Físico: LOW) por ${segundosRestantes}s.`, 'text-green');
-
-            relojes[id] = setInterval(() => {
-                segundosRestantes--;
-                displayTimer.textContent = formatearTiempo(segundosRestantes);
-
-                if (segundosRestantes <= 0) {
-                    clearInterval(relojes[id]);
-                    relojes[id] = null;
-                    // Envía orden de apagado (físicamente pondrá el pin en HIGH)
-                    enviarComandoESP32(`APAGAR_${id}`);
-                    apagarTarjetaVisual(id);
-                    agregarLog(`[AUTOMÁTICO] Ciclo terminado. RELE_0${id} DESACTIVADO (Físico: HIGH).`, 'text-cyan');
-                }
-            }, 1000);
-        }
-
-        function abortarTemporizador(id) {
-            if (relojes[id] !== null) {
-                clearInterval(relojes[id]);
-                relojes[id] = null;
-            }
-            enviarComandoESP32(`APAGAR_${id}`);
-            apagarTarjetaVisual(id);
-        }
-
-        function masterTemporizador(encender) {
-            if (relojMaestro !== null) {
-                clearInterval(relojMaestro);
-                relojMaestro = null;
-            }
-
-            if (!encender) {
-                for (let id = 0; id < relojes.length; id++) {
-                    if (relojes[id] !== null) {
-                        clearInterval(relojes[id]);
-                        relojes[id] = null;
-                    }
-                    apagarTarjetaVisual(id);
-                }
-                enviarComandoESP32("APAGAR_TODO");
-                agregarLog("[MAESTRO] Parada de emergencia ejecutada. Todo APAGADO (Físico: HIGH).", "text-red");
-                return;
-            }
-
-            const inputMaster = document.getElementById('time-master');
-            let tiempoGlobal = parseInt(inputMaster.value);
-
-            if (isNaN(tiempoGlobal) || tiempoGlobal <= 0) {
-                agregarLog("[MAESTRO] Ingrese un tiempo global válido.", "text-red");
-                return;
-            }
-
-            for (let id = 0; id < relojes.length; id++) {
-                if (relojes[id] !== null) {
-                    clearInterval(relojes[id]);
-                    relojes[id] = null;
-                }
-                activarTarjetaVisual(id, tiempoGlobal);
-            }
-
-            enviarComandoESP32("ENCENDER_TODO");
-            agregarLog(`[MAESTRO] Disparo global. Todos activos (Físico: LOW) por ${tiempoGlobal}s.`, "text-green");
-
-            relojMaestro = setInterval(() => {
-                tiempoGlobal--;
-                
-                for (let id = 0; id < relojes.length; id++) {
-                    const tarjeta = document.getElementById(`card-${id}`);
-                    tarjeta.querySelector('.countdown-timer').textContent = formatearTiempo(tiempoGlobal);
-                }
-
-                if (tiempoGlobal <= 0) {
-                    clearInterval(relojMaestro);
-                    relojMaestro = null;
-                    
-                    for (let id = 0; id < relojes.length; id++) {
-                        apagarTarjetaVisual(id);
-                    }
-                    enviarComandoESP32("APAGAR_TODO");
-                    agregarLog("[MAESTRO] Cuenta global terminada. Todos los pines restablecidos a HIGH.", "text-cyan");
-                }
-            }, 1000);
-        }
-
-        function activarTarjetaVisual(id, segundos) {
-            const tarjeta = document.getElementById(`card-${id}`);
-            const displayStatus = tarjeta.querySelector('.display-status');
-            tarjeta.classList.add('active');
-            displayStatus.textContent = "ENCENDIDO";
-            displayStatus.style.color = "var(--neon-green)";
-            tarjeta.querySelector('.countdown-timer').textContent = formatearTiempo(segundos);
-        }
-
-        function apagarTarjetaVisual(id) {
-            const tarjeta = document.getElementById(`card-${id}`);
-            const displayStatus = tarjeta.querySelector('.display-status');
-            tarjeta.classList.remove('active');
-            displayStatus.textContent = "APAGADO";
-            displayStatus.style.color = "var(--neon-red)";
-            tarjeta.querySelector('.countdown-timer').textContent = "00:00";
-        }
-
-        function formatearTiempo(segundos) {
-            const min = Math.floor(segundos / 60).toString().padStart(2, '0');
-            const seg = (segundos % 60).toString().padStart(2, '0');
-            return `${min}:${seg}`;
-        }
-
-        function agregarLog(mensaje, claseCSS) {
-            const logBox = document.getElementById('log-box');
-            const nuevaLinea = document.createElement('p');
-            nuevaLinea.className = `log-line ${claseCSS}`;
-            nuevaLinea.textContent = `[${new Date().toLocaleTimeString()}] ` + mensaje;
-            logBox.appendChild(nuevaLinea);
-            logBox.scrollTop = logBox.scrollHeight;
-        }
-    </script>
+  </div>
+  <div class="conn-pill" id="connPill">
+    <div class="pulse" id="pulse"></div>
+    <span id="pillText">Sin conexión</span>
+  </div>
+</div>
+ 
+<div class="main">
+ 
+  <!-- CONEXIÓN -->
+  <div class="section-card connect-card">
+    <div class="section-header">
+      <div class="section-icon">🔗</div>
+      <div>
+        <div class="section-title">Conectar dispositivo</div>
+        <div class="section-sub">Elige cómo conectarte al ESP32</div>
+      </div>
+    </div>
+ 
+    <div class="methods-grid">
+ 
+      <!-- WiFi -->
+      <div class="method wifi-method" id="cardWifi" onclick="selectMethod('wifi')">
+        <div class="method-check" id="checkWifi">✓</div>
+        <div class="method-top">
+          <div class="method-icon-wrap wifi-icon-wrap">
+            <span class="method-icon">📶</span>
+          </div>
+          <span class="method-badge wifi-badge">RED LOCAL</span>
+        </div>
+        <div class="method-name">Wi-Fi</div>
+        <div class="method-ssid">Casa Inteligente ESP32</div>
+        <div class="method-note">Conecta tu dispositivo a la red WiFi del ESP32 y luego presiona el botón</div>
+      </div>
+ 
+      <!-- Bluetooth -->
+      <div class="method bt-method" id="cardBT" onclick="selectMethod('bt')">
+        <div class="method-check" id="checkBT" style="display:none">✓</div>
+        <div class="method-top">
+          <div class="method-icon-wrap bt-icon-wrap">
+            <span class="method-icon">🔵</span>
+          </div>
+          <span class="method-badge bt-badge">BLUETOOTH</span>
+        </div>
+        <div class="method-name">Bluetooth</div>
+        <div class="method-ssid">Casa Inteligente ESP32</div>
+        <div class="method-note">El navegador abrirá la búsqueda de dispositivos Bluetooth cercanos</div>
+      </div>
+ 
+    </div>
+ 
+    <!-- Botón conectar -->
+    <button class="btn-connect wifi-btn" id="btnConnect" onclick="conectar()">
+      <span id="btnIcon">📶</span>
+      <span id="btnText">Buscar y conectar vía Wi-Fi</span>
+    </button>
+ 
+    <!-- Banner conectado -->
+    <div class="connected-banner" id="connBanner">
+      <div class="banner-left">
+        <div class="banner-dot"></div>
+        <div>
+          <div class="banner-title">CONECTADO</div>
+          <div class="banner-detail" id="bannerDetail">—</div>
+        </div>
+      </div>
+      <button class="btn-disc" onclick="desconectar()">Desconectar</button>
+    </div>
+ 
+  </div>
+ 
+  <!-- CONTROLES -->
+  <div class="section-card">
+    <div class="section-header">
+      <div class="section-icon">⚡</div>
+      <div>
+        <div class="section-title">Control de relés</div>
+        <div class="section-sub">GPIO: 26 · 27 · 25 · 33</div>
+      </div>
+    </div>
+ 
+    <div class="global-btns">
+      <button class="gbtn gbtn-on" id="gOn" onclick="todosOn()" disabled>⚡ Encender todo</button>
+      <button class="gbtn gbtn-off" id="gOff" onclick="todosOff()" disabled>🔴 Apagar todo</button>
+    </div>
+ 
+    <div class="relays-grid" id="relaysGrid"></div>
+  </div>
+ 
+  <!-- INFO -->
+  <div class="section-card info-card">
+    <div class="section-title" style="margin-bottom:16px">Sistema</div>
+    <div class="info-row"><span>Red WiFi</span><code>Casa Inteligente ESP32</code></div>
+    <div class="info-row"><span>Contraseña</span><code>CASA INTELIGENTE PROYECTO</code></div>
+    <div class="info-row"><span>IP ESP32</span><code id="iIP">192.168.4.1</code></div>
+    <div class="info-row"><span>Puerto</span><code>80</code></div>
+    <div class="info-row"><span>Bluetooth</span><code>Casa Inteligente ESP32</code></div>
+    <div class="info-row"><span>Relés activos</span><code id="iActivos" style="color:#22c55e">0 / 4</code></div>
+    <div class="info-row"><span>Estado</span><code id="iEstado" style="color:#6b7280">Desconectado</code></div>
+  </div>
+ 
+</div>
+ 
+<div class="footer">
+  <span>ESP32 · Casa Inteligente — WiFi + Bluetooth</span>
+  <span id="clock">--:--:--</span>
+</div>
+ 
+<div id="toast"><span id="tIcon"></span><span id="tMsg"></span></div>
+ 
+<script>
+const ESP_IP = '192.168.4.1';
+let metodo = 'wifi';
+let conectado = false;
+ 
+const pines   = [26, 27, 25, 33];
+const nombres = ['Sala', 'Cocina', 'Habitación', 'Garaje'];
+const iconos  = ['💡', '🍳', '🛏️', '🚗'];
+const estados = [false, false, false, false];
+ 
+// Reloj
+setInterval(() => {
+  const n = new Date();
+  document.getElementById('clock').textContent =
+    [n.getHours(), n.getMinutes(), n.getSeconds()]
+      .map(v => String(v).padStart(2,'0')).join(':');
+}, 1000);
+ 
+// Método
+function selectMethod(m) {
+  metodo = m;
+  document.getElementById('cardWifi').classList.toggle('selected', m === 'wifi');
+  document.getElementById('cardBT').classList.toggle('selected', m === 'bt');
+  document.getElementById('checkWifi').style.display = m === 'wifi' ? 'flex' : 'none';
+  document.getElementById('checkBT').style.display   = m === 'bt'   ? 'flex' : 'none';
+ 
+  const btn = document.getElementById('btnConnect');
+  const ico = document.getElementById('btnIcon');
+  const txt = document.getElementById('btnText');
+  if (m === 'wifi') {
+    btn.className = 'btn-connect wifi-btn';
+    ico.textContent = '📶';
+    txt.textContent = 'Buscar y conectar vía Wi-Fi';
+  } else {
+    btn.className = 'btn-connect bt-btn';
+    ico.textContent = '🔵';
+    txt.textContent = 'Buscar dispositivo Bluetooth';
+  }
+}
+ 
+// Conectar
+async function conectar() {
+  if (conectado) return;
+  const btn = document.getElementById('btnConnect');
+  btn.disabled = true;
+  document.getElementById('btnText').textContent = 'Conectando…';
+  document.getElementById('btnIcon').textContent = '⏳';
+ 
+  if (metodo === 'wifi') {
+    await conectarWifi();
+  } else {
+    await conectarBT();
+  }
+}
+ 
+async function conectarWifi() {
+  // Intenta alcanzar el ESP32
+  toast('📶', 'Buscando ESP32 en la red…');
+  try {
+    const res = await fetch(`http://${ESP_IP}/comando?val=ESTADO`, { signal: AbortSignal.timeout(5000) });
+    if (res.ok || res.status === 200) {
+      onConectado('wifi', `http://${ESP_IP} · Puerto 80`);
+    } else {
+      throw new Error();
+    }
+  } catch {
+    // Si no puede hacer fetch (CORS/red) abre la IP en nueva pestaña
+    toast('📶', 'Asegúrate de estar en la red del ESP32');
+    setTimeout(() => {
+      window.open(`http://${ESP_IP}`, '_blank');
+      onConectado('wifi', `http://${ESP_IP} · Abierto en nueva pestaña`);
+    }, 1200);
+  }
+}
+ 
+async function conectarBT() {
+  if (!navigator.bluetooth) {
+    toast('❌', 'Tu navegador no soporta Bluetooth. Usa Chrome en PC/Android.');
+    resetBtn();
+    return;
+  }
+  toast('🔵', 'Abriendo búsqueda de dispositivos…');
+  try {
+    const device = await navigator.bluetooth.requestDevice({
+      filters: [{ name: 'Casa Inteligente ESP32' }],
+      optionalServices: ['00001101-0000-1000-8000-00805f9b34fb']
+    });
+    toast('🔵', `Dispositivo encontrado: ${device.name}`);
+    onConectado('bt', `BT: ${device.name} · Serie 115200`);
+  } catch(e) {
+    if (e.name !== 'NotFoundError') {
+      toast('❌', 'No se pudo conectar: ' + e.message);
+    } else {
+      toast('⚠️', 'Búsqueda cancelada');
+    }
+    resetBtn();
+  }
+}
+ 
+function onConectado(m, detalle) {
+  conectado = true;
+  const pill = document.getElementById('connPill');
+  pill.className = 'conn-pill ' + (m === 'wifi' ? 'pill-wifi' : 'pill-bt');
+  document.getElementById('pulse').className = 'pulse pulse-on';
+  document.getElementById('pillText').textContent = m === 'wifi' ? 'Wi-Fi conectado' : 'BT conectado';
+ 
+  document.getElementById('connBanner').style.display = 'flex';
+  document.getElementById('bannerDetail').textContent = detalle;
+  document.getElementById('btnConnect').style.display = 'none';
+ 
+  document.getElementById('iEstado').textContent = '● Conectado';
+  document.getElementById('iEstado').style.color = '#22c55e';
+ 
+  document.getElementById('gOn').disabled  = false;
+  document.getElementById('gOff').disabled = false;
+ 
+  document.querySelectorAll('.relay-card').forEach(c => c.classList.remove('disabled'));
+ 
+  toast('✅', m === 'wifi' ? 'Wi-Fi conectado correctamente' : 'Bluetooth conectado');
+}
+ 
+function desconectar() {
+  conectado = false;
+  document.getElementById('connPill').className = 'conn-pill';
+  document.getElementById('pulse').className = 'pulse';
+  document.getElementById('pillText').textContent = 'Sin conexión';
+  document.getElementById('connBanner').style.display = 'none';
+ 
+  const btn = document.getElementById('btnConnect');
+  btn.style.display = '';
+  btn.disabled = false;
+  selectMethod(metodo);
+ 
+  document.getElementById('iEstado').textContent = 'Desconectado';
+  document.getElementById('iEstado').style.color = '#6b7280';
+  document.getElementById('gOn').disabled  = true;
+  document.getElementById('gOff').disabled = true;
+ 
+  estados.fill(false);
+  renderRelays();
+  toast('🔌', 'Dispositivo desconectado');
+}
+ 
+function resetBtn() {
+  const btn = document.getElementById('btnConnect');
+  btn.disabled = false;
+  selectMethod(metodo);
+}
+ 
+// Relays
+function enviarCmd(cmd) {
+  if (!conectado) return;
+  fetch(`http://${ESP_IP}/comando?val=${cmd}`).catch(() => {});
+}
+ 
+function toggle(i) {
+  if (!conectado) { toast('⚠️', 'Conéctate primero'); return; }
+  estados[i] = !estados[i];
+  enviarCmd(estados[i] ? `ENCENDER_${i}` : `APAGAR_${i}`);
+  renderRelays();
+  toast(estados[i] ? '💡' : '🔴', `${nombres[i]}: ${estados[i] ? 'Encendido' : 'Apagado'}`);
+}
+ 
+function todosOn() {
+  estados.fill(true); enviarCmd('ENCENDER_TODO'); renderRelays();
+  toast('⚡', 'Todos encendidos');
+}
+ 
+function todosOff() {
+  estados.fill(false); enviarCmd('APAGAR_TODO'); renderRelays();
+  toast('🔴', 'Todos apagados');
+}
+ 
+function renderRelays() {
+  const g = document.getElementById('relaysGrid');
+  g.innerHTML = '';
+  estados.forEach((on, i) => {
+    const d = document.createElement('div');
+    d.className = 'relay-card' + (on ? ' on' : '') + (!conectado ? ' disabled' : '');
+    d.innerHTML = `
+      <span class="rpin">GPIO ${pines[i]}</span>
+      <div class="rbtn" onclick="toggle(${i})">
+        <div class="rbtn-inner">
+          <span class="rpower">${on ? '🟢' : '⚪'}</span>
+        </div>
+      </div>
+      <div class="ricon">${iconos[i]}</div>
+      <input class="rname" value="${nombres[i]}"
+        onchange="nombres[${i}]=this.value"
+        onclick="event.stopPropagation()">
+      <div class="rstatus">${on ? 'ENCENDIDO' : 'APAGADO'}</div>
+    `;
+    d.addEventListener('click', e => { if (e.target.tagName !== 'INPUT') toggle(i); });
+    g.appendChild(d);
+  });
+  document.getElementById('iActivos').textContent = estados.filter(Boolean).length + ' / 4';
+}
+ 
+// Toast
+let tt;
+function toast(icon, msg) {
+  document.getElementById('tIcon').textContent = icon;
+  document.getElementById('tMsg').textContent  = ' ' + msg;
+  document.getElementById('toast').classList.add('show');
+  clearTimeout(tt);
+  tt = setTimeout(() => document.getElementById('toast').classList.remove('show'), 3200);
+}
+ 
+selectMethod('wifi');
+renderRelays();
+</script>
 </body>
 </html>
+ 
