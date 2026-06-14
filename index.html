@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CYBERPUNK ESP32 MAINFRAME</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="scifi-container">
+        
+        <header class="cyber-header">
+            <div class="glitch-title">QUANTUM ESP32 CONTROL</div>
+            <div class="subtitle">SISTEMA MAESTRO DE TEMPORIZACIÓN SERIAL</div>
+            <div class="status-bar">
+                <button class="btn btn-trigger" id="btn-conectar" onclick="conectarSerial()">🔌 CONECTAR ESP32</button>
+                | ESTADO PUERTO: <span id="serial-status" class="text-red">DESCONECTADO</span>
+            </div>
+        </header>
+
+        <section class="master-panel">
+            <div class="master-title">CONTROLES MAESTROS GLOBALES</div>
+            <div class="master-interface">
+                <div class="input-group">
+                    <label>TEMPORIZADOR GLOBAL (Segundos)</label>
+                    <input type="number" id="time-master" value="10" min="1">
+                </div>
+                <div class="master-buttons">
+                    <button class="btn btn-master-on" onclick="masterTemporizador(true)">⚡ ENCENDER TODO (TIMER)</button>
+                    <button class="btn btn-master-off" onclick="masterTemporizador(false)">🚨 APAGAR TODO / ABORTAR</button>
+                </div>
+            </div>
+        </section>
+
+        <main class="relay-grid">
+            
+            <div class="relay-card" id="card-0">
+                <div class="card-header">
+                    <span class="relay-id">RELE_00</span>
+                    <span class="relay-pin">PIN 26</span>
+                </div>
+                <div class="display-status">APAGADO</div>
+                <div class="countdown-timer">00:00</div>
+                <div class="timer-inputs">
+                    <div class="input-group">
+                        <label>TIEMPO ENCENDIDO (s)</label>
+                        <input type="number" id="time-on-0" value="5" min="1">
+                    </div>
+                </div>
+                <div class="action-buttons">
+                    <button class="btn btn-trigger" onclick="iniciarTemporizador(0)">INICIAR</button>
+                    <button class="btn btn-abort" onclick="abortarTemporizador(0)">ABORTAR</button>
+                </div>
+            </div>
+
+            <div class="relay-card" id="card-1">
+                <div class="card-header">
+                    <span class="relay-id">RELE_01</span>
+                    <span class="relay-pin">PIN 27</span>
+                </div>
+                <div class="display-status">APAGADO</div>
+                <div class="countdown-timer">00:00</div>
+                <div class="timer-inputs">
+                    <div class="input-group">
+                        <label>TIEMPO ENCENDIDO (s)</label>
+                        <input type="number" id="time-on-1" value="5" min="1">
+                    </div>
+                </div>
+                <div class="action-buttons">
+                    <button class="btn btn-trigger" onclick="iniciarTemporizador(1)">INICIAR</button>
+                    <button class="btn btn-abort" onclick="abortarTemporizador(1)">ABORTAR</button>
+                </div>
+            </div>
+
+            <div class="relay-card" id="card-2">
+                <div class="card-header">
+                    <span class="relay-id">RELE_02</span>
+                    <span class="relay-pin">PIN 25</span>
+                </div>
+                <div class="display-status">APAGADO</div>
+                <div class="countdown-timer">00:00</div>
+                <div class="timer-inputs">
+                    <div class="input-group">
+                        <label>TIEMPO ENCENDIDO (s)</label>
+                        <input type="number" id="time-on-2" value="5" min="1">
+                    </div>
+                </div>
+                <div class="action-buttons">
+                    <button class="btn btn-trigger" onclick="iniciarTemporizador(2)">INICIAR</button>
+                    <button class="btn btn-abort" onclick="abortarTemporizador(2)">ABORTAR</button>
+                </div>
+            </div>
+
+            <div class="relay-card" id="card-3">
+                <div class="card-header">
+                    <span class="relay-id">RELE_03</span>
+                    <span class="relay-pin">PIN 33</span>
+                </div>
+                <div class="display-status">APAGADO</div>
+                <div class="countdown-timer">00:00</div>
+                <div class="timer-inputs">
+                    <div class="input-group">
+                        <label>TIEMPO ENCENDIDO (s)</label>
+                        <input type="number" id="time-on-3" value="5" min="1">
+                    </div>
+                </div>
+                <div class="action-buttons">
+                    <button class="btn btn-trigger" onclick="iniciarTemporizador(3)">INICIAR</button>
+                    <button class="btn btn-abort" onclick="abortarTemporizador(3)">ABORTAR</button>
+                </div>
+            </div>
+
+        </main>
+
+        <footer class="cyber-console">
+            <div class="console-title">TERMINAL LOGS</div>
+            <div class="console-box" id="log-box">
+                <p class="log-line text-cyan">[SISTEMA] Listo. Conecte el ESP32 y asegúrese de cerrar el monitor serie de Arduino.</p>
+            </div>
+        </footer>
+
+    </div>
+
+    <script>
+        let puertoSerial = null;
+        let escritorSerial = null;
+        let relojes = [null, null, null, null];
+        let relojMaestro = null;
+
+        async function conectarSerial() {
+            try {
+                puertoSerial = await navigator.serial.requestPort();
+                await puertoSerial.open({ baudRate: 115200 });
+                escritorSerial = puertoSerial.writable.getWriter();
+                
+                document.getElementById('serial-status').textContent = "CONECTADO";
+                document.getElementById('serial-status').className = "text-green";
+                agregarLog("[SERIAL] Enlace establecido con ESP32 con éxito.", "text-green");
+            } catch (error) {
+                agregarLog("[ERROR] Fallo al abrir puerto: " + error, "text-red");
+            }
+        }
+
+        async function enviarComandoESP32(comando) {
+            if (!escritorSerial) {
+                agregarLog(`[WEB-ONLY] Interfaz actualiza estado local para comando: ${comando}`, "text-yellow");
+                return;
+            }
+            try {
+                const encoder = new TextEncoder();
+                await escritorSerial.write(encoder.encode(comando + "\n"));
+            } catch (error) {
+                agregarLog("[ERROR] Error de envío USB: " + error, "text-red");
+            }
+        }
+
+        function iniciarTemporizador(id) {
+            abortarTemporizador(id);
+
+            const tarjeta = document.getElementById(`card-${id}`);
+            const inputTiempo = document.getElementById(`time-on-${id}`);
+            const displayStatus = tarjeta.querySelector('.display-status');
+            const displayTimer = tarjeta.querySelector('.countdown-timer');
+            
+            let segundosRestantes = parseInt(inputTiempo.value);
+
+            if (isNaN(segundosRestantes) || segundosRestantes <= 0) {
+                agregarLog(`[RECHAZADO] Tiempo incorrecto en RELE_0${id}`, 'text-red');
+                return;
+            }
+
+            // Envía orden de encendido (físicamente pondrá el pin en LOW)
+            enviarComandoESP32(`ENCENDER_${id}`);
+            activarTarjetaVisual(id, segundosRestantes);
+            agregarLog(`[COMANDO] RELE_0${id} ACTIVADO (Físico: LOW) por ${segundosRestantes}s.`, 'text-green');
+
+            relojes[id] = setInterval(() => {
+                segundosRestantes--;
+                displayTimer.textContent = formatearTiempo(segundosRestantes);
+
+                if (segundosRestantes <= 0) {
+                    clearInterval(relojes[id]);
+                    relojes[id] = null;
+                    // Envía orden de apagado (físicamente pondrá el pin en HIGH)
+                    enviarComandoESP32(`APAGAR_${id}`);
+                    apagarTarjetaVisual(id);
+                    agregarLog(`[AUTOMÁTICO] Ciclo terminado. RELE_0${id} DESACTIVADO (Físico: HIGH).`, 'text-cyan');
+                }
+            }, 1000);
+        }
+
+        function abortarTemporizador(id) {
+            if (relojes[id] !== null) {
+                clearInterval(relojes[id]);
+                relojes[id] = null;
+            }
+            enviarComandoESP32(`APAGAR_${id}`);
+            apagarTarjetaVisual(id);
+        }
+
+        function masterTemporizador(encender) {
+            if (relojMaestro !== null) {
+                clearInterval(relojMaestro);
+                relojMaestro = null;
+            }
+
+            if (!encender) {
+                for (let id = 0; id < relojes.length; id++) {
+                    if (relojes[id] !== null) {
+                        clearInterval(relojes[id]);
+                        relojes[id] = null;
+                    }
+                    apagarTarjetaVisual(id);
+                }
+                enviarComandoESP32("APAGAR_TODO");
+                agregarLog("[MAESTRO] Parada de emergencia ejecutada. Todo APAGADO (Físico: HIGH).", "text-red");
+                return;
+            }
+
+            const inputMaster = document.getElementById('time-master');
+            let tiempoGlobal = parseInt(inputMaster.value);
+
+            if (isNaN(tiempoGlobal) || tiempoGlobal <= 0) {
+                agregarLog("[MAESTRO] Ingrese un tiempo global válido.", "text-red");
+                return;
+            }
+
+            for (let id = 0; id < relojes.length; id++) {
+                if (relojes[id] !== null) {
+                    clearInterval(relojes[id]);
+                    relojes[id] = null;
+                }
+                activarTarjetaVisual(id, tiempoGlobal);
+            }
+
+            enviarComandoESP32("ENCENDER_TODO");
+            agregarLog(`[MAESTRO] Disparo global. Todos activos (Físico: LOW) por ${tiempoGlobal}s.`, "text-green");
+
+            relojMaestro = setInterval(() => {
+                tiempoGlobal--;
+                
+                for (let id = 0; id < relojes.length; id++) {
+                    const tarjeta = document.getElementById(`card-${id}`);
+                    tarjeta.querySelector('.countdown-timer').textContent = formatearTiempo(tiempoGlobal);
+                }
+
+                if (tiempoGlobal <= 0) {
+                    clearInterval(relojMaestro);
+                    relojMaestro = null;
+                    
+                    for (let id = 0; id < relojes.length; id++) {
+                        apagarTarjetaVisual(id);
+                    }
+                    enviarComandoESP32("APAGAR_TODO");
+                    agregarLog("[MAESTRO] Cuenta global terminada. Todos los pines restablecidos a HIGH.", "text-cyan");
+                }
+            }, 1000);
+        }
+
+        function activarTarjetaVisual(id, segundos) {
+            const tarjeta = document.getElementById(`card-${id}`);
+            const displayStatus = tarjeta.querySelector('.display-status');
+            tarjeta.classList.add('active');
+            displayStatus.textContent = "ENCENDIDO";
+            displayStatus.style.color = "var(--neon-green)";
+            tarjeta.querySelector('.countdown-timer').textContent = formatearTiempo(segundos);
+        }
+
+        function apagarTarjetaVisual(id) {
+            const tarjeta = document.getElementById(`card-${id}`);
+            const displayStatus = tarjeta.querySelector('.display-status');
+            tarjeta.classList.remove('active');
+            displayStatus.textContent = "APAGADO";
+            displayStatus.style.color = "var(--neon-red)";
+            tarjeta.querySelector('.countdown-timer').textContent = "00:00";
+        }
+
+        function formatearTiempo(segundos) {
+            const min = Math.floor(segundos / 60).toString().padStart(2, '0');
+            const seg = (segundos % 60).toString().padStart(2, '0');
+            return `${min}:${seg}`;
+        }
+
+        function agregarLog(mensaje, claseCSS) {
+            const logBox = document.getElementById('log-box');
+            const nuevaLinea = document.createElement('p');
+            nuevaLinea.className = `log-line ${claseCSS}`;
+            nuevaLinea.textContent = `[${new Date().toLocaleTimeString()}] ` + mensaje;
+            logBox.appendChild(nuevaLinea);
+            logBox.scrollTop = logBox.scrollHeight;
+        }
+    </script>
+</body>
+</html>
