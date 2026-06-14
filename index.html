@@ -1,5 +1,3 @@
-
-Casa inteligente · HTML
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -7,6 +5,101 @@ Casa inteligente · HTML
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Casa Inteligente ESP32</title>
 <link rel="stylesheet" href="style.css">
+<style>
+  /* Estilos del temporizador por relé (agregado, no requiere cambios en style.css) */
+  .rtimer { width: 100%; margin-top: 8px; }
+  .rtimer-toggle {
+    width: 100%;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    color: var(--muted2);
+    font-family: 'Inter', sans-serif;
+    font-size: .68rem;
+    font-weight: 600;
+    padding: 7px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .rtimer-toggle:hover {
+    background: rgba(255,255,255,0.07);
+    color: var(--text);
+  }
+  .rtimer-panel {
+    margin-top: 10px;
+    padding: 12px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.025);
+    border: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    text-align: left;
+  }
+  .rtimer-block { display: flex; flex-direction: column; gap: 6px; }
+  .rtimer-label {
+    font-size: .65rem;
+    color: var(--muted2);
+    font-weight: 700;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+  }
+  .rtimer-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .rtimer-input {
+    flex: 1;
+    background: var(--card2);
+    border: 1px solid var(--border2);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .75rem;
+    padding: 6px 8px;
+    border-radius: 6px;
+    outline: none;
+    min-width: 0;
+  }
+  .rtimer-arrow {
+    font-size: .65rem;
+    color: var(--muted2);
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .rtimer-btn {
+    border: none;
+    border-radius: 6px;
+    font-family: 'Inter', sans-serif;
+    font-size: .68rem;
+    font-weight: 700;
+    padding: 6px 12px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all .2s;
+  }
+  .rtimer-start {
+    background: rgba(34,197,94,0.15);
+    color: var(--green);
+    border: 1px solid rgba(34,197,94,0.3);
+  }
+  .rtimer-start:hover { background: rgba(34,197,94,0.25); }
+  .rtimer-stop {
+    background: rgba(239,68,68,0.12);
+    color: var(--red);
+    border: 1px solid rgba(239,68,68,0.3);
+  }
+  .rtimer-stop:hover { background: rgba(239,68,68,0.22); }
+  .rtimer-check {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: .7rem;
+    color: var(--muted2);
+    cursor: pointer;
+  }
+  .rtimer-check input { cursor: pointer; }
+</style>
 </head>
 <body>
  
@@ -63,7 +156,7 @@ Casa inteligente · HTML
         </div>
         <div class="method-name">Bluetooth</div>
         <div class="method-ssid">Casa Inteligente ESP32</div>
-        <div class="method-note">El navegador abrirá la búsqueda de dispositivos Bluetooth cercanos</div>
+        <div class="method-note">El navegador abrirá la búsqueda de dispositivos Bluetooth cercanos (BLE)</div>
       </div>
  
     </div>
@@ -86,6 +179,18 @@ Casa inteligente · HTML
       <button class="btn-disc" onclick="desconectar()">Desconectar</button>
     </div>
  
+  </div>
+ 
+  <!-- DISPOSITIVOS BLUETOOTH CONECTADOS -->
+  <div class="section-card" id="btDevicesCard" style="display:none">
+    <div class="section-header">
+      <div class="section-icon">📱</div>
+      <div>
+        <div class="section-title">Dispositivos Bluetooth conectados</div>
+        <div class="section-sub">Conexiones BLE activas desde este navegador</div>
+      </div>
+    </div>
+    <div id="btDevicesList"></div>
   </div>
  
   <!-- CONTROLES -->
@@ -113,7 +218,7 @@ Casa inteligente · HTML
     <div class="info-row"><span>Contraseña</span><code>CASA INTELIGENTE PROYECTO</code></div>
     <div class="info-row"><span>IP ESP32</span><code id="iIP">192.168.4.1</code></div>
     <div class="info-row"><span>Puerto</span><code>80</code></div>
-    <div class="info-row"><span>Bluetooth</span><code>Casa Inteligente ESP32</code></div>
+    <div class="info-row"><span>Bluetooth</span><code>Casa Inteligente ESP32 (BLE)</code></div>
     <div class="info-row"><span>Relés activos</span><code id="iActivos" style="color:#22c55e">0 / 4</code></div>
     <div class="info-row"><span>Estado</span><code id="iEstado" style="color:#6b7280">Desconectado</code></div>
   </div>
@@ -136,6 +241,21 @@ const pines   = [26, 27, 25, 33];
 const nombres = ['Sala', 'Cocina', 'Habitación', 'Garaje'];
 const iconos  = ['💡', '🍳', '🛏️', '🚗'];
 const estados = [false, false, false, false];
+ 
+// --- Temporizadores por relé ---
+// countdown: { activo, minutos, restanteSeg, intervalId }
+// schedule:  { activo, horaOn, horaOff, ultimaOn, ultimaOff }
+const timers = pines.map(() => ({
+  countdown: { activo: false, minutos: 10, restanteSeg: 0, intervalId: null },
+  schedule:  { activo: false, horaOn: '', horaOff: '', ultimaOn: '', ultimaOff: '' }
+}));
+ 
+// --- BLE config (debe coincidir con el firmware del ESP32) ---
+const BLE_SERVICE_UUID = '0000ffe0-0000-1000-8000-00805f9b34fb';
+const BLE_CHAR_UUID    = '0000ffe1-0000-1000-8000-00805f9b34fb';
+ 
+let bleDevice = null;
+let bleCharacteristic = null;
  
 // Reloj
 setInterval(() => {
@@ -202,6 +322,7 @@ async function conectarWifi() {
   }
 }
  
+// --- Bluetooth (BLE) ---
 async function conectarBT() {
   if (!navigator.bluetooth) {
     toast('❌', 'Tu navegador no soporta Bluetooth. Usa Chrome en PC/Android.');
@@ -210,12 +331,21 @@ async function conectarBT() {
   }
   toast('🔵', 'Abriendo búsqueda de dispositivos…');
   try {
-    const device = await navigator.bluetooth.requestDevice({
-      filters: [{ name: 'Casa Inteligente ESP32' }],
-      optionalServices: ['00001101-0000-1000-8000-00805f9b34fb']
+    bleDevice = await navigator.bluetooth.requestDevice({
+      filters: [{ services: [BLE_SERVICE_UUID] }],
+      optionalServices: [BLE_SERVICE_UUID]
     });
-    toast('🔵', `Dispositivo encontrado: ${device.name}`);
-    onConectado('bt', `BT: ${device.name} · Serie 115200`);
+ 
+    toast('🔵', `Dispositivo encontrado: ${bleDevice.name || 'ESP32'}`);
+ 
+    // Detectar desconexiones futuras
+    bleDevice.addEventListener('gattserverdisconnected', onBleDisconnected);
+ 
+    const server = await bleDevice.gatt.connect();
+    const service = await server.getPrimaryService(BLE_SERVICE_UUID);
+    bleCharacteristic = await service.getCharacteristic(BLE_CHAR_UUID);
+ 
+    onConectado('bt', `BLE: ${bleDevice.name || 'Casa Inteligente ESP32'}`);
   } catch(e) {
     if (e.name !== 'NotFoundError') {
       toast('❌', 'No se pudo conectar: ' + e.message);
@@ -223,6 +353,44 @@ async function conectarBT() {
       toast('⚠️', 'Búsqueda cancelada');
     }
     resetBtn();
+  }
+}
+ 
+function onBleDisconnected() {
+  if (metodo === 'bt' && conectado) {
+    toast('🔌', 'El ESP32 (BLE) se desconectó');
+    desconectar();
+  }
+}
+ 
+// Enviar texto por BLE
+async function enviarBLE(cmd) {
+  if (!bleCharacteristic) return;
+  try {
+    const data = new TextEncoder().encode(cmd);
+    await bleCharacteristic.writeValue(data);
+  } catch (e) {
+    toast('❌', 'Error enviando comando BLE');
+  }
+}
+ 
+// Lista de dispositivos BLE conectados (desde este navegador)
+function renderBtDevices() {
+  const card = document.getElementById('btDevicesCard');
+  const list = document.getElementById('btDevicesList');
+  list.innerHTML = '';
+ 
+  if (metodo === 'bt' && bleDevice && bleDevice.gatt && bleDevice.gatt.connected) {
+    card.style.display = '';
+    const row = document.createElement('div');
+    row.className = 'info-row';
+    row.innerHTML = `
+      <span>🔵 ${bleDevice.name || 'Dispositivo ESP32'}</span>
+      <code style="color:#3b82f6">Conectado</code>
+    `;
+    list.appendChild(row);
+  } else {
+    card.style.display = 'none';
   }
 }
  
@@ -245,11 +413,22 @@ function onConectado(m, detalle) {
  
   document.querySelectorAll('.relay-card').forEach(c => c.classList.remove('disabled'));
  
+  renderBtDevices();
+ 
   toast('✅', m === 'wifi' ? 'Wi-Fi conectado correctamente' : 'Bluetooth conectado');
 }
  
 function desconectar() {
   conectado = false;
+ 
+  // Si hay conexión BLE activa, cerrarla
+  if (bleDevice && bleDevice.gatt && bleDevice.gatt.connected) {
+    bleDevice.removeEventListener('gattserverdisconnected', onBleDisconnected);
+    bleDevice.gatt.disconnect();
+  }
+  bleDevice = null;
+  bleCharacteristic = null;
+ 
   document.getElementById('connPill').className = 'conn-pill';
   document.getElementById('pulse').className = 'pulse';
   document.getElementById('pillText').textContent = 'Sin conexión';
@@ -267,6 +446,7 @@ function desconectar() {
  
   estados.fill(false);
   renderRelays();
+  renderBtDevices();
   toast('🔌', 'Dispositivo desconectado');
 }
  
@@ -279,7 +459,11 @@ function resetBtn() {
 // Relays
 function enviarCmd(cmd) {
   if (!conectado) return;
-  fetch(`http://${ESP_IP}/comando?val=${cmd}`).catch(() => {});
+  if (metodo === 'wifi') {
+    fetch(`http://${ESP_IP}/comando?val=${cmd}`).catch(() => {});
+  } else {
+    enviarBLE(cmd);
+  }
 }
  
 function toggle(i) {
@@ -304,6 +488,7 @@ function renderRelays() {
   const g = document.getElementById('relaysGrid');
   g.innerHTML = '';
   estados.forEach((on, i) => {
+    const t = timers[i];
     const d = document.createElement('div');
     d.className = 'relay-card' + (on ? ' on' : '') + (!conectado ? ' disabled' : '');
     d.innerHTML = `
@@ -318,12 +503,163 @@ function renderRelays() {
         onchange="nombres[${i}]=this.value"
         onclick="event.stopPropagation()">
       <div class="rstatus">${on ? 'ENCENDIDO' : 'APAGADO'}</div>
+      <div class="rtimer" onclick="event.stopPropagation()">
+        <button class="rtimer-toggle" onclick="toggleTimerPanel(${i})">⏱️ Temporizador</button>
+        <div class="rtimer-panel" id="timerPanel${i}" style="display:none">
+ 
+          <div class="rtimer-block">
+            <div class="rtimer-label">Apagar en (min)</div>
+            <div class="rtimer-row">
+              <input type="number" min="1" class="rtimer-input" id="cdMin${i}"
+                value="${t.countdown.minutos}"
+                onchange="timers[${i}].countdown.minutos = Math.max(1, parseInt(this.value)||1)">
+              ${t.countdown.activo
+                ? `<button class="rtimer-btn rtimer-stop" onclick="cancelCountdown(${i})">Cancelar (${formatSeg(t.countdown.restanteSeg)})</button>`
+                : `<button class="rtimer-btn rtimer-start" onclick="startCountdown(${i})">Iniciar</button>`
+              }
+            </div>
+          </div>
+ 
+          <div class="rtimer-block">
+            <div class="rtimer-label">Programar diario</div>
+            <div class="rtimer-row">
+              <input type="time" class="rtimer-input" id="schOn${i}"
+                value="${t.schedule.horaOn}"
+                onchange="timers[${i}].schedule.horaOn = this.value">
+              <span class="rtimer-arrow">→ ON</span>
+            </div>
+            <div class="rtimer-row">
+              <input type="time" class="rtimer-input" id="schOff${i}"
+                value="${t.schedule.horaOff}"
+                onchange="timers[${i}].schedule.horaOff = this.value">
+              <span class="rtimer-arrow">→ OFF</span>
+            </div>
+            <div class="rtimer-row">
+              <label class="rtimer-check">
+                <input type="checkbox" ${t.schedule.activo ? 'checked' : ''}
+                  onchange="toggleSchedule(${i}, this.checked)">
+                Activar programación
+              </label>
+            </div>
+          </div>
+ 
+        </div>
+      </div>
     `;
     d.addEventListener('click', e => { if (e.target.tagName !== 'INPUT') toggle(i); });
     g.appendChild(d);
   });
   document.getElementById('iActivos').textContent = estados.filter(Boolean).length + ' / 4';
 }
+ 
+// ═══════════════════════════
+// TEMPORIZADORES
+// ═══════════════════════════
+ 
+function formatSeg(totalSeg) {
+  const m = Math.floor(totalSeg / 60);
+  const s = totalSeg % 60;
+  return `${m}:${String(s).padStart(2,'0')}`;
+}
+ 
+function toggleTimerPanel(i) {
+  const panel = document.getElementById(`timerPanel${i}`);
+  if (!panel) return;
+  const abierto = panel.style.display !== 'none';
+  // Cerrar todos los demás
+  document.querySelectorAll('.rtimer-panel').forEach(p => p.style.display = 'none');
+  panel.style.display = abierto ? 'none' : 'block';
+}
+ 
+// --- Cuenta regresiva ---
+function startCountdown(i) {
+  if (!conectado) { toast('⚠️', 'Conéctate primero'); return; }
+  const t = timers[i];
+  if (t.countdown.activo) return;
+ 
+  // Encender el relé si está apagado
+  if (!estados[i]) {
+    estados[i] = true;
+    enviarCmd(`ENCENDER_${i}`);
+  }
+ 
+  t.countdown.activo = true;
+  t.countdown.restanteSeg = t.countdown.minutos * 60;
+ 
+  t.countdown.intervalId = setInterval(() => {
+    t.countdown.restanteSeg--;
+    if (t.countdown.restanteSeg <= 0) {
+      clearInterval(t.countdown.intervalId);
+      t.countdown.activo = false;
+      t.countdown.intervalId = null;
+      if (estados[i]) {
+        estados[i] = false;
+        enviarCmd(`APAGAR_${i}`);
+      }
+      toast('⏱️', `${nombres[i]}: temporizador finalizado, apagado`);
+      renderRelays();
+    } else {
+      // Solo refrescar el texto del botón sin re-render completo (evita perder foco)
+      const btn = document.querySelector(`#timerPanel${i} .rtimer-stop`);
+      if (btn) btn.textContent = `Cancelar (${formatSeg(t.countdown.restanteSeg)})`;
+    }
+  }, 1000);
+ 
+  toast('⏱️', `${nombres[i]}: se apagará en ${t.countdown.minutos} min`);
+  renderRelays();
+  // Reabrir el panel tras re-render
+  const panel = document.getElementById(`timerPanel${i}`);
+  if (panel) panel.style.display = 'block';
+}
+ 
+function cancelCountdown(i) {
+  const t = timers[i];
+  if (t.countdown.intervalId) clearInterval(t.countdown.intervalId);
+  t.countdown.activo = false;
+  t.countdown.intervalId = null;
+  toast('⏱️', `${nombres[i]}: temporizador cancelado`);
+  renderRelays();
+  const panel = document.getElementById(`timerPanel${i}`);
+  if (panel) panel.style.display = 'block';
+}
+ 
+// --- Programación diaria ---
+function toggleSchedule(i, activo) {
+  timers[i].schedule.activo = activo;
+  toast('🗓️', `${nombres[i]}: programación ${activo ? 'activada' : 'desactivada'}`);
+}
+ 
+// Revisa cada minuto si hay que ejecutar horarios programados
+setInterval(() => {
+  if (!conectado) return;
+  const ahora = new Date();
+  const hhmm = String(ahora.getHours()).padStart(2,'0') + ':' + String(ahora.getMinutes()).padStart(2,'0');
+  const hoy = ahora.toDateString();
+ 
+  timers.forEach((t, i) => {
+    if (!t.schedule.activo) return;
+ 
+    if (t.schedule.horaOn === hhmm && t.schedule.ultimaOn !== hoy) {
+      t.schedule.ultimaOn = hoy;
+      if (!estados[i]) {
+        estados[i] = true;
+        enviarCmd(`ENCENDER_${i}`);
+        renderRelays();
+      }
+      toast('🗓️', `${nombres[i]}: encendido por programación`);
+    }
+ 
+    if (t.schedule.horaOff === hhmm && t.schedule.ultimaOff !== hoy) {
+      t.schedule.ultimaOff = hoy;
+      if (estados[i]) {
+        estados[i] = false;
+        enviarCmd(`APAGAR_${i}`);
+        renderRelays();
+      }
+      toast('🗓️', `${nombres[i]}: apagado por programación`);
+    }
+  });
+}, 30000); // chequea cada 30s
  
 // Toast
 let tt;
@@ -337,7 +673,7 @@ function toast(icon, msg) {
  
 selectMethod('wifi');
 renderRelays();
+renderBtDevices();
 </script>
 </body>
 </html>
- 
